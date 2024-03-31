@@ -1,0 +1,66 @@
+require 'gtk3'
+require 'thread'
+require_relative 'Puzle1'
+require 'mfrc522'
+require 'securerandom'
+
+
+class Puzle2
+  def initialize(application)
+    #Inicialitzem finestra
+    window = Gtk::ApplicationWindow.new(application)
+    window.set_title("Lector de Targetas")
+    window.set_default_size(400,200)
+    window.override_background_color(:normal, Gdk::RGBA.new(0, 0, 1, 1)) # Azul
+    #Creem widgets
+    grid = Gtk::Grid.new
+    boton = Gtk::Button.new
+    label = Gtk::Label.new
+      #Accio del boto clear
+    boton.set_label("Clear")
+    boton.signal_connect("clicked"){
+      self.clickeo(window,label)
+    }
+    #Creem el label
+    label.override_color(:normal, Gdk::RGBA.new(1.0, 1.0, 1.0, 1.0)) # Blanco
+    label.set_text("Please, login with your university card")
+    label.set_halign(Gtk::Align::CENTER) # Centra el texto horizontalmente
+
+    #Afegim tot al grid i a la finestra
+    grid.attach(label, 0,0, 1, 1) # Cambiado para usar attach_next_to
+    grid.attach_next_to(boton,label, Gtk::PositionType::BOTTOM,1,1) # Adjunta el>
+    grid.set_halign(Gtk::Align::CENTER)
+    grid.set_valign(Gtk::Align::CENTER)
+    window.add(grid)
+    window.show_all
+    t=Thread.new {self.buscar_uid(window,label)}
+    t.abort_on_exception = true
+
+
+  end
+
+  def clickeo(window,label)
+    window.override_background_color(:normal, Gdk::RGBA.new(0, 0, 1, 1)) # Azul
+    label.override_color(:normal, Gdk::RGBA.new(1.0, 1.0, 1.0, 1.0)) # B>
+    label.set_text("Please, login with your university card")
+    t=Thread.new {self.buscar_uid(window,label)}
+
+  end
+
+  def buscar_uid(window,label)
+    rf = Mfrc522.new()
+    uid = rf.read_uid
+    window.override_background_color(:normal, Gdk::RGBA.new(1.0, 0.0, 0.0, 1.0))
+    label.override_color(:normal, Gdk::RGBA.new(1.0, 1.0, 1.0, 1.0)) # B>
+    label.set_text("UID: #{uid} ")
+    label.set_valign(Gtk::Align::CENTER) # Centra el texto verticalmente 
+end
+end
+app = Gtk::Application.new("org.gtk.example", :flags_none)
+app.signal_connect "activate" do |application|
+
+p = Puzle2.new(application)
+end
+
+puts app.run
+
