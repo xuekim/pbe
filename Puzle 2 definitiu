@@ -1,0 +1,106 @@
+require 'gtk3'
+require 'thread'
+require 'mfrc522'
+require 'monitor'
+require_relative 'Puzle1'
+
+class Puzle2
+  def initialize(application)
+    @uid = ""
+    @monitor = Monitor.new
+    @cond_var = @monitor.new_cond
+    window = Gtk::ApplicationWindow.new(application)
+    window.set_title("Lector de Tarjetas")
+    window.set_default_size(400, 200)
+    grid = Gtk::Grid.new
+    boton = Gtk::Button.new
+    label = Gtk::Label.new
+
+    boton.set_label("Clear")
+    boton.signal_connect("clicked") {
+      clickeo(window, label)
+    }
+
+    grid.attach(label, 0, 0, 1, 1)
+    grid.attach_next_to(boton, label, Gtk::PositionType::BOTTOM, 1, 1)
+    grid.set_halign(Gtk::Align::CENTER)
+    grid.set_valign(Gtk::Align::CENTER)
+    window.add(grid)
+
+    inserta_uid(window, label)
+
+  end
+
+  def pantalla1(window,label)
+      label.override_color(:normal, Gdk::RGBA.new(1.0, 1.0, 1.0, 1.0))
+      label.set_text("Please, login with your university card")
+      label.set_halign(Gtk::Align::CENTER)
+      window.override_background_color(:normal, Gdk::RGBA.new(0, 0, 1, 1))
+      window.show_all
+  end
+
+  
+  def clickeo(window, label)
+    @monitor.synchronize {
+      @uid = ""
+      inserta_uid(window, label)
+    }
+  end
+
+
+
+  def buscar_uid
+    @monitor.synchronize {
+      begin
+      rf = Mfrc522.new
+      @uid = rf.read_uid
+      @cond_var.signal
+
+      rescue UnexpectedDataError => e
+      puts "Error al leer el UID: #{e.message}"
+      end
+    }
+  end
+
+  def inserta_uid(window, label)
+
+      pantalla1(window,label)
+      GLib::Timeout.add(100) do
+
+        @monitor.synchronize do
+    
+          t = Thread.new {
+          buscar_uid
+          }
+    
+          @cond_var.wait_until { !@uid.empty? }
+    
+    end
+    
+          mostrar_uid(window, label, @uid)
+    false
+    end
+
+
+  end
+
+  def mostrar_uid(window, label, uid)
+
+    window.override_background_color(:normal, Gdk::RGBA.new(1.0, 0.0, 0.0, 1.0))
+    label.override_color(:normal, Gdk::RGBA.new(1.0, 1.0, 1.0, 1.0))
+    label.set_text("UID: #{uid}")
+    label.set_valign(Gtk::Align::CENTER)
+
+   end
+end
+
+app = Gtk::Application.new("org.gtk.example", :flags_none)
+app.signal_connect("activate") do |application|
+  p = Puzle2.new(application)
+end
+
+puts app.run
+
+    
+
+
